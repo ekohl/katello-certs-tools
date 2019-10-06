@@ -34,44 +34,27 @@ errnoGeneralError = 1
 errnoSuccess = 0
 
 
-def fixSerial(serial):
-    """ fixes a serial number this may be wrongly formatted """
+def format_serial(serial):
+    """
+    Format a serial
 
-    if not serial:
-        serial = '00'
+    >>> format_serial(0)
+    '00'
+    >>> format_serial(16)
+    '10'
+    >>> format_serial(256)
+    '0100'
+    """
 
-    if serial.find('0x') == -1:
-        serial = '0x'+serial
-
-    # strip the '0x' if present
-    serial = serial.split('x')[-1]
-
-    # the string might have a trailing L
-    serial = serial.replace('L', '')
+    result = '{:x}'.format(serial)
 
     # make sure the padding is correct
     # if odd number of digits, pad with a 0
     # e.g., '100' --> '0100'
-    if len(serial)/2.0 != len(serial)/2:
-        serial = '0'+serial
+    if len(result) % 2:
+        return '0' + result
 
-    return serial
-
-
-def incSerial(serial):
-    """ increment a serial hex number """
-
-    if not serial:
-        serial = '00'
-
-    if serial.find('0x') == -1:
-        serial = '0x'+serial
-
-    serial = eval(serial) + 1
-    serial = hex(serial)
-
-    serial = serial.split('x')[-1]
-    return fixSerial(serial)
+    return result
 
 
 #

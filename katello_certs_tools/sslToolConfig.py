@@ -24,10 +24,11 @@ import sys
 import copy
 import time
 import socket
+import subprocess
 
 # local imports
-from katello_certs_tools.fileutils import cleanupNormPath, rotateFile, rhn_popen, cleanupAbsPath
-from katello_certs_tools.sslToolLib import daysTil18Jan2038, incSerial, fixSerial
+from katello_certs_tools.fileutils import cleanupNormPath, rotateFile, cleanupAbsPath
+from katello_certs_tools.sslToolLib import daysTil18Jan2038, format_serial
 
 
 # defaults where we can see them (NOTE: directory is figured at write time)
@@ -474,43 +475,34 @@ def figureSerial(caCertFilename, serialFilename, indexFilename):
     """
 
     # what serial # is the ca cert using (we need to increment from that)
-    ret, outstream, errstream = rhn_popen(['/usr/bin/openssl', 'x509', '-noout',
-                                           '-serial', '-in', caCertFilename])
-    out = outstream.read().decode('utf-8')
-    outstream.close()
-    errstream.read()
-    errstream.close()
-    assert not ret
-    caSerial = out.strip().split('=')
-    assert len(caSerial) > 1
-    caSerial = caSerial[1]
-    caSerial = eval('0x'+caSerial)
+    command = ['/usr/bin/openssl', 'x509', '-noout', '-serial', '-in', caCertFilename]
+    output = subprocess.check_output(command, universal_newlines=True)
+    assert '=' in output
+    ca_serial = int(output.rstrip().split('=', 1)[1], 16)
 
     # initialize the serial value (starting at whatever is in
     # serialFilename or 1)
     serial = 1
     if os.path.exists(serialFilename):
-        serial = open(serialFilename, 'r').read().strip()
-        if serial:
-            serial = eval('0x'+serial)
-        else:
-            serial = 1
+        with open(serialFilename, 'r') as serial_fp:
+            content = serial_fp.read().strip()
+            if content:
+                serial = int(serial, 16)
 
     # make sure it is at least 1 more than the CA's serial code always
     # REMEMBER: openssl will incremented the serial number each time
     # as well.
-    if serial <= caSerial:
-        serial = incSerial(hex(caSerial))
-        serial = eval('0x' + serial)
-    serial = fixSerial(hex(serial))
+    serial = max(serial, ca_serial + 1)
 
     # create the serial file if it doesn't exist
     # write the digits to this file
-    open(serialFilename, 'w').write(serial+'\n')
+    with open(serialFilename, 'w') as serial_fp:
+        serial_fp.write(format_serial(serial)+'\n')
     os.chmod(serialFilename, 0o600)
 
     # truncate the index.txt file. Less likely to have unneccessary clashes.
-    open(indexFilename, 'w')
+    with open(indexFilename, 'w'):
+        pass
     os.chmod(indexFilename, 0o600)
     return serial
 
