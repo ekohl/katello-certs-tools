@@ -465,11 +465,6 @@ def genServerCert(password, d, verbosity=0):
     # figure out the serial file and truncate the index.txt file.
     ser = figureSerial(ca_cert, serial, index_txt)
 
-    # need to insure the directory declared in the ca_openssl.cnf
-    # file is current:
-    configFile = ConfigFile(ca_openssl_cnf)
-    configFile.updateDir()
-
     args = ("/usr/bin/openssl ca -extensions req_%s_x509_extensions -passin pass:%s -outdir ./ -config %s "
             "-in %s -batch -cert %s -keyfile %s -startdate %s -days %s "
             "-md %s -out %s"
