@@ -229,12 +229,20 @@ ERROR: a CA private key already exists:
     os.chmod(ca_key, 0o600)
 
 
-def genPublicCaCert_dependencies(password, d, forceYN=0):
+def genPublicCaCert(password, d, verbosity=0, forceYN=0):
     """ public CA certificate (client-side) generation """
 
+    if password is None:
+        sys.stderr.write('ERROR: a CA password must be supplied.\n')
+        sys.exit(errnoGeneralError)
+
     gendir(d['--dir'])
+
     ca_key = os.path.join(d['--dir'], os.path.basename(d['--ca-key']))
-    ca_cert = os.path.join(d['--dir'], os.path.basename(d['--ca-cert']))
+    dependencyCheck(ca_key)
+
+    ca_cert_name = os.path.basename(d['--ca-cert'])
+    ca_cert = os.path.join(d['--dir'], ca_cert_name)
 
     if not forceYN and os.path.exists(ca_cert):
         sys.stderr.write("""\
@@ -244,23 +252,7 @@ ERROR: a CA public certificate already exists:
 """ % ca_cert)
         sys.exit(errnoGeneralError)
 
-    dependencyCheck(ca_key)
-
-    if password is None:
-        sys.stderr.write('ERROR: a CA password must be supplied.\n')
-        sys.exit(errnoGeneralError)
-
-
-def genPublicCaCert(password, d, verbosity=0, forceYN=0):
-    """ public CA certificate (client-side) generation """
-
-    ca_key = os.path.join(d['--dir'], os.path.basename(d['--ca-key']))
-    ca_cert_name = os.path.basename(d['--ca-cert'])
-    ca_cert = os.path.join(d['--dir'], ca_cert_name)
     ca_openssl_cnf = os.path.join(d['--dir'], CA_OPENSSL_CNF_NAME)
-
-    genPublicCaCert_dependencies(password, d, forceYN)
-
     configFile = ConfigFile(ca_openssl_cnf)
     if '--set-hostname' in d:
         del d['--set-hostname']
@@ -325,12 +317,10 @@ def genPublicCaCert(password, d, verbosity=0, forceYN=0):
 def genServerKey(d, verbosity=0):
     """ private server key generation """
 
-    serverKeyPairDir = os.path.join(d['--dir'],
-                                    d['--set-hostname'])
+    serverKeyPairDir = os.path.join(d['--dir'], d['--set-hostname'])
     gendir(serverKeyPairDir)
 
-    server_key = os.path.join(serverKeyPairDir,
-                              os.path.basename(d['--server-key']))
+    server_key = os.path.join(serverKeyPairDir, os.path.basename(d['--server-key']))
 
     args = ("/usr/bin/openssl genrsa -out %s 2048"
             % (repr(cleanupAbsPath(server_key))))
@@ -373,31 +363,17 @@ def genServerKey(d, verbosity=0):
     os.chmod(server_key, 0o600)
 
 
-def genServerCertReq_dependencies(d):
-    """ private server cert request generation """
-
-    serverKeyPairDir = os.path.join(d['--dir'],
-                                    d['--set-hostname'])
-    gendir(serverKeyPairDir)
-
-    server_key = os.path.join(serverKeyPairDir,
-                              os.path.basename(d['--server-key']))
-    dependencyCheck(server_key)
-
-
 def genServerCertReq(d, verbosity=0):
     """ private server cert request generation """
 
-    serverKeyPairDir = os.path.join(d['--dir'],
-                                    d['--set-hostname'])
-    server_key = os.path.join(serverKeyPairDir,
-                              os.path.basename(d['--server-key']))
-    server_cert_req = os.path.join(serverKeyPairDir,
-                                   os.path.basename(d['--server-cert-req']))
-    server_openssl_cnf = os.path.join(serverKeyPairDir,
-                                      SERVER_OPENSSL_CNF_NAME)
+    serverKeyPairDir = os.path.join(d['--dir'], d['--set-hostname'])
+    gendir(serverKeyPairDir)
 
-    genServerCertReq_dependencies(d)
+    server_key = os.path.join(serverKeyPairDir, os.path.basename(d['--server-key']))
+    dependencyCheck(server_key)
+
+    server_cert_req = os.path.join(serverKeyPairDir, os.path.basename(d['--server-cert-req']))
+    server_openssl_cnf = os.path.join(serverKeyPairDir, SERVER_OPENSSL_CNF_NAME)
 
     # XXX: hmm.. should private_key, etc. be set for this before the write?
     #      either that you pull the key/certs from the files all together?
@@ -452,46 +428,29 @@ def genServerCertReq(d, verbosity=0):
     os.chmod(server_cert_req, 0o600)
 
 
-def genServerCert_dependencies(password, d):
-    """ server cert generation and signing dependency check """
+def genServerCert(password, d, verbosity=0):
+    """ server cert generation and signing """
 
     if password is None:
         sys.stderr.write('ERROR: a CA password must be supplied.\n')
         sys.exit(errnoGeneralError)
 
-    serverKeyPairDir = os.path.join(d['--dir'],
-                                    d['--set-hostname'])
+    serverKeyPairDir = os.path.join(d['--dir'], d['--set-hostname'])
     gendir(serverKeyPairDir)
 
     ca_key = os.path.join(d['--dir'], os.path.basename(d['--ca-key']))
-    ca_cert = os.path.join(d['--dir'], os.path.basename(d['--ca-cert']))
-
-    server_cert_req = os.path.join(serverKeyPairDir,
-                                   os.path.basename(d['--server-cert-req']))
-    ca_openssl_cnf = os.path.join(d['--dir'], CA_OPENSSL_CNF_NAME)
-
-    dependencyCheck(ca_openssl_cnf)
     dependencyCheck(ca_key)
+
+    ca_cert = os.path.join(d['--dir'], os.path.basename(d['--ca-cert']))
     dependencyCheck(ca_cert)
+
+    server_cert_req = os.path.join(serverKeyPairDir, os.path.basename(d['--server-cert-req']))
     dependencyCheck(server_cert_req)
 
+    server_cert = os.path.join(serverKeyPairDir, os.path.basename(d['--server-cert']))
 
-def genServerCert(password, d, verbosity=0):
-    """ server cert generation and signing """
-
-    serverKeyPairDir = os.path.join(d['--dir'],
-                                    d['--set-hostname'])
-
-    genServerCert_dependencies(password, d)
-
-    ca_key = os.path.join(d['--dir'], os.path.basename(d['--ca-key']))
-    ca_cert = os.path.join(d['--dir'], os.path.basename(d['--ca-cert']))
-
-    server_cert_req = os.path.join(serverKeyPairDir,
-                                   os.path.basename(d['--server-cert-req']))
-    server_cert = os.path.join(serverKeyPairDir,
-                               os.path.basename(d['--server-cert']))
     ca_openssl_cnf = os.path.join(d['--dir'], CA_OPENSSL_CNF_NAME)
+    dependencyCheck(ca_openssl_cnf)
 
     index_txt = os.path.join(d['--dir'], 'index.txt')
     serial = os.path.join(d['--dir'], 'serial')
@@ -599,25 +558,19 @@ def _reenableRpmMacros():
         os.rename(macTmp, mac)
 
 
-def genCaRpm_dependencies(d):
+def genCaRpm(d, verbosity=0):
     """ generates ssl cert RPM. """
 
     gendir(d['--dir'])
-    ca_cert_name = os.path.basename(d['--ca-cert'])
-    ca_cert = os.path.join(d['--dir'], ca_cert_name)
-    dependencyCheck(ca_cert)
-
-
-def genCaRpm(d, verbosity=0):
-    """ generates ssl cert RPM. """
 
     ca_cert_path = d['--ca-cert-dir']
     ca_cert_name = os.path.basename(d['--ca-cert'])
     ca_cert = os.path.join(d['--dir'], ca_cert_name)
+    dependencyCheck(ca_cert)
+
     ca_cert_rpm_name = os.path.basename(d['--ca-cert-rpm'])
     ca_cert_rpm = os.path.join(d['--dir'], ca_cert_rpm_name)
 
-    genCaRpm_dependencies(d)
     appendOtherCACerts(d, ca_cert)
 
     if verbosity >= 0:
@@ -745,41 +698,23 @@ def getTarballFilename(d, version='1.0', release='1'):
     return current, next_name
 
 
-def genServerRpm_dependencies(d):
-    """ generates server's SSL key set RPM - dependencies check """
+def genServerRpm(d, verbosity=0):
+    """ generates server's SSL key set RPM """
 
-    serverKeyPairDir = os.path.join(d['--dir'],
-                                    d['--set-hostname'])
+    serverKeyPairDir = os.path.join(d['--dir'], d['--set-hostname'])
     gendir(serverKeyPairDir)
 
     server_key_name = os.path.basename(d['--server-key'])
     server_key = os.path.join(serverKeyPairDir, server_key_name)
-
-    server_cert_name = os.path.basename(d['--server-cert'])
-    server_cert = os.path.join(serverKeyPairDir, server_cert_name)
-
-    server_cert_req_name = os.path.basename(d['--server-cert-req'])
-    server_cert_req = os.path.join(serverKeyPairDir, server_cert_req_name)
-
     dependencyCheck(server_key)
-    dependencyCheck(server_cert)
-    dependencyCheck(server_cert_req)
-
-
-def genServerRpm(d, verbosity=0):
-    """ generates server's SSL key set RPM """
-
-    serverKeyPairDir = os.path.join(d['--dir'],
-                                    d['--set-hostname'])
-
-    server_key_name = os.path.basename(d['--server-key'])
-    server_key = os.path.join(serverKeyPairDir, server_key_name)
 
     server_cert_name = os.path.basename(d['--server-cert'])
     server_cert = os.path.join(serverKeyPairDir, server_cert_name)
+    dependencyCheck(server_cert)
 
     server_cert_req_name = os.path.basename(d['--server-cert-req'])
     server_cert_req = os.path.join(serverKeyPairDir, server_cert_req_name)
+    dependencyCheck(server_cert_req)
 
     server_rpm_name = os.path.basename(d['--server-rpm'])
     server_rpm = os.path.join(serverKeyPairDir, server_rpm_name)
@@ -787,8 +722,6 @@ def genServerRpm(d, verbosity=0):
     server_cert_dir = d['--server-cert-dir']
 
     postun_scriptlet = os.path.join(d['--dir'], 'postun.scriptlet')
-
-    genServerRpm_dependencies(d)
 
     if verbosity >= 0:
         sys.stderr.write("\n...working...\n")
@@ -917,11 +850,8 @@ def _main():
             genPrivateCaKey(getCAPassword(options), DEFS,
                             options.verbose, options.force)
         elif getOption(options, 'cert_only'):
-            genPublicCaCert_dependencies(getCAPassword(options), DEFS, options.force)
-            genPublicCaCert(getCAPassword(options), DEFS,
-                            options.verbose, options.force)
+            genPublicCaCert(getCAPassword(options), DEFS, options.verbose, options.force)
         elif getOption(options, 'rpm_only'):
-            genCaRpm_dependencies(DEFS)
             genCaRpm(DEFS, options.verbose)
         else:
             genPrivateCaKey(getCAPassword(options), DEFS,
@@ -935,19 +865,17 @@ def _main():
         if getOption(options, 'key_only'):
             genServerKey(DEFS, options.verbose)
         elif getOption(options, 'cert_req_only'):
-            genServerCertReq_dependencies(DEFS)
             genServerCertReq(DEFS, options.verbose)
         elif getOption(options, 'cert_only'):
-            genServerCert_dependencies(getCAPassword(options, confirmYN=0), DEFS)
             genServerCert(getCAPassword(options, confirmYN=0), DEFS, options.verbose)
         elif getOption(options, 'rpm_only'):
-            genServerRpm_dependencies(DEFS)
             genServerRpm(DEFS, options.verbose)
         else:
-            genServer_dependencies(getCAPassword(options, confirmYN=0), DEFS)
+            ca_password = getCAPassword(options, confirmYN=0)
+            genServer_dependencies(ca_password, DEFS)
             genServerKey(DEFS, options.verbose)
             genServerCertReq(DEFS, options.verbose)
-            genServerCert(getCAPassword(options, confirmYN=0), DEFS, options.verbose)
+            genServerCert(ca_password, DEFS, options.verbose)
             if not getOption(options, 'no_rpm'):
                 genServerRpm(DEFS, options.verbose)
 
