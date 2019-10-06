@@ -263,12 +263,12 @@ def figureDEFS_distinguishing(options):
     """
 
     # map the config file settings to the DEFS object
-    conf = {}
     caYN = '--gen-ca-cert' in sys.argv or '--gen-ca' in sys.argv
     if caYN:
-        conf = ConfigFile(os.path.join(DEFS['--dir'], CA_OPENSSL_CNF_NAME)).parse()
+        path = os.path.join(DEFS['--dir'], CA_OPENSSL_CNF_NAME)
     else:
-        conf = ConfigFile(os.path.join(DEFS['--dir'], MACHINENAME, SERVER_OPENSSL_CNF_NAME)).parse()
+        path = os.path.join(DEFS['--dir'], MACHINENAME, SERVER_OPENSSL_CNF_NAME)
+    conf = parse_config(cleanupAbsPath(path))
 
     mapping = {
             'C': ('--set-country',),
@@ -517,58 +517,33 @@ def figureSerial(caCertFilename, serialFilename, indexFilename):
     return serial
 
 
-class ConfigFile:
-    def __init__(self, filename=None):
-        self.filename = filename
-        if self.filename is None:
-            self.filename = SERVER_OPENSSL_CNF_NAME
-            if os.path.exists(os.path.join(DEFS['--dir'], 'katello_openssl.cnf')):
-                self.filename = os.path.join(DEFS['--dir'], "katello_openssl.cnf")
-            elif os.path.exists(os.path.join(DEFS['--dir'], 'openssl.cnf')):
-                self.filename = os.path.join(DEFS['--dir'], "openssl.cnf")
-        self.filename = cleanupAbsPath(self.filename)
+def parse_config(path):
+    """ yank all the pertinent ssl data from a previously generated openssl.cnf.
+    """
 
-    def parse(self):
-        """ yank all the pertinent ssl data from a previously
-            generated openssl.cnf.
+    d = {}
+    keys = ('C', 'ST', 'L', 'O', 'OU', 'CN', 'emailAddress')
 
-            NOTE: we get a limited sampling of info here. We have no concept
-            of the [ some heading ] divisions in the katello_openssl.cnf file.
-        """
+    try:
+        with open(path, 'r') as fo:
+            for line in fo:
+                if line.strip() == '[ req_distinguished_name ]':
+                    break
 
-        d = {}
+            for line in fo:
+                line = line.strip()
+                if line.startswith('[') and line.endswith(']'):
+                    break
 
-        try:
-            fo = open(self.filename, 'r')
-        except IOError:
-            return d
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.rstrip()
+                    if key in keys:
+                        d[key] = value.lstrip()
+    except IOError:
+        pass
 
-        line = fo.readline()
-        while line:
-            if line.strip() == '[ req_distinguished_name ]':
-                break
-            line = fo.readline()
-
-        keys = ['C', 'ST', 'L', 'O', 'OU', 'CN',
-                'emailAddress']
-
-        for s in fo.readlines():
-            s = s.strip()
-            if len(s) > 2 and s[0] == '[' and s[-1] == ']':
-                break
-            split = s.split()
-            if not split or len(split) < 3:
-                continue
-            if split[0] not in keys:
-                continue
-            split = s.split('=')
-            if len(split) != 2:
-                continue
-            for i in range(len(split)):
-                split[i] = split[i].strip()
-            d[split[0]] = split[1]
-
-        return d
+    return d
 
 
 def save_config(filename, d, is_ca, verbosity=0):
