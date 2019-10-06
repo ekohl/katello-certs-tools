@@ -52,7 +52,7 @@ from katello_certs_tools.sslToolLib import KatelloSslToolException, \
 
 from katello_certs_tools.fileutils import rotateFile, rhn_popen, cleanupAbsPath
 
-from katello_certs_tools.sslToolConfig import ConfigFile, figureSerial, getOption, \
+from katello_certs_tools.sslToolConfig import save_config, figureSerial, getOption, \
         DEFS, MD, CRYPTO, \
         CA_OPENSSL_CNF_NAME, SERVER_OPENSSL_CNF_NAME, POST_UNINSTALL_SCRIPT, \
         SERVER_RPM_SUMMARY, CA_CERT_RPM_SUMMARY
@@ -252,15 +252,14 @@ ERROR: a CA public certificate already exists:
 """ % ca_cert)
         sys.exit(errnoGeneralError)
 
-    ca_openssl_cnf = os.path.join(d['--dir'], CA_OPENSSL_CNF_NAME)
-    configFile = ConfigFile(ca_openssl_cnf)
     if '--set-hostname' in d:
         del d['--set-hostname']
-    configFile.save(d, caYN=1, verbosity=verbosity)
+    ca_openssl_cnf = cleanupAbsPath(os.path.join(d['--dir'], CA_OPENSSL_CNF_NAME))
+    save_config(ca_openssl_cnf, d, is_ca=True, verbosity=verbosity)
 
     args = ("/usr/bin/openssl req -passin pass:%s -text -config %s "
             "-new -x509 -days %s -%s -key %s -out %s"
-            % ('%s', repr(cleanupAbsPath(configFile.filename)),
+            % ('%s', repr(ca_openssl_cnf),
                repr(d['--cert-expiration']),
                MD, repr(cleanupAbsPath(ca_key)),
                repr(cleanupAbsPath(ca_cert))))
@@ -373,16 +372,15 @@ def genServerCertReq(d, verbosity=0):
     dependencyCheck(server_key)
 
     server_cert_req = os.path.join(serverKeyPairDir, os.path.basename(d['--server-cert-req']))
-    server_openssl_cnf = os.path.join(serverKeyPairDir, SERVER_OPENSSL_CNF_NAME)
+    server_openssl_cnf = cleanupAbsPath(os.path.join(serverKeyPairDir, SERVER_OPENSSL_CNF_NAME))
 
     # XXX: hmm.. should private_key, etc. be set for this before the write?
     #      either that you pull the key/certs from the files all together?
-    configFile = ConfigFile(server_openssl_cnf)
-    configFile.save(d, caYN=0, verbosity=verbosity)
+    save_config(server_openssl_cnf, d, is_ca=False, verbosity=verbosity)
 
     # generate the server cert request
     args = ("/usr/bin/openssl req -%s -text -config %s -new -key %s -out %s "
-            % (MD, repr(cleanupAbsPath(configFile.filename)),
+            % (MD, repr(server_openssl_cnf),
                repr(cleanupAbsPath(server_key)),
                repr(cleanupAbsPath(server_cert_req))))
 

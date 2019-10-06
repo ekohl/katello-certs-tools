@@ -570,46 +570,40 @@ class ConfigFile:
 
         return d
 
-    def save(self, d, caYN=0, verbosity=0):
-        """ d == commandline dictionary """
 
-        mapping = {
-                '--set-country': 'C',
-                '--set-state': 'ST',
-                '--set-city': 'L',
-                '--set-org': 'O',
-                '--set-org-unit': 'OU',
-                '--set-common-name': 'CN',
-                '--set-email': 'emailAddress',
-                  }
+def save_config(filename, d, is_ca, verbosity=0):
+    """ d == commandline dictionary """
 
-        rdn = {}
-        for k in d.keys():
-            if k in mapping:
-                rdn[mapping[k]] = d[k].strip()
+    mapping = {
+        '--set-country': 'C',
+        '--set-state': 'ST',
+        '--set-city': 'L',
+        '--set-org': 'O',
+        '--set-org-unit': 'OU',
+        '--set-common-name': 'CN',
+        '--set-email': 'emailAddress',
+    }
 
-        openssl_cnf = ''
-        if caYN:
-            openssl_cnf = CONF_TEMPLATE_CA % (
-              os.path.dirname(self.filename)+'/',
-              gen_req_distinguished_name(rdn),
-              )
-        else:
-            openssl_cnf = CONF_TEMPLATE_SERVER \
-              % (gen_req_distinguished_name(rdn), d['--purpose'],  gen_req_alt_names(d, rdn['CN']))
+    rdn = {mapping[key]: value.strip() for key, value in d.items() if key in mapping}
+    request = gen_req_distinguished_name(rdn)
 
-        try:
-            rotated = rotateFile(filepath=self.filename, verbosity=verbosity)
-            if verbosity >= 0 and rotated:
-                print("Rotated: %s --> %s" % (os.path.basename(self.filename),
-                                              os.path.basename(rotated)))
-        except ValueError:
-            pass
-        fo = open(self.filename, 'w')
-        fo.write(openssl_cnf)
-        fo.close()
-        os.chmod(self.filename, 0o600)
-        return openssl_cnf
+    if is_ca:
+        openssl_cnf = CONF_TEMPLATE_CA % (os.path.dirname(filename)+'/', request)
+    else:
+        alt_names = gen_req_alt_names(d, rdn['CN'])
+        openssl_cnf = CONF_TEMPLATE_SERVER % (request, d['--purpose'], alt_names)
+
+    try:
+        rotated = rotateFile(filepath=filename, verbosity=verbosity)
+        if verbosity >= 0 and rotated:
+            print("Rotated: %s --> %s" % (os.path.basename(filename), os.path.basename(rotated)))
+    except ValueError:
+        pass
+
+    with open(filename, 'w') as config_fp:
+        config_fp.write(openssl_cnf)
+    os.chmod(filename, 0o600)
+    return openssl_cnf
 
 
 ##
