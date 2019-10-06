@@ -414,8 +414,7 @@ def genServerCertReq(d, verbosity=0):
 
     if ret:
         raise GenServerCertReqException(
-                "web server's SSL certificate request generation "
-                "failed:\n%s\n%s" % (out, err))
+            "web server's SSL certificate request generation failed:\n%s\n%s" % (out, err))
     if verbosity > 2:
         if out:
             print("STDOUT:", out)
@@ -503,12 +502,12 @@ def genServerCert(password, d, verbosity=0):
           and "error:0906A065:PEM routines:PEM_do_header:bad decrypt:pem_lib.c" in err \
           and "error:06065064:digital envelope routines:EVP_DecryptFinal:bad decrypt:evp_enc.c" in err:
             raise GenServerCertException(
-                    "web server's SSL certificate generation/signing "
-                    "failed:\nDid you mistype your CA password?")
+                "web server's SSL certificate generation/signing "
+                "failed:\nDid you mistype your CA password?")
         else:
             raise GenServerCertException(
-                    "web server's SSL certificate generation/signing "
-                    "failed:\n%s\n%s" % (out, err))
+                "web server's SSL certificate generation/signing "
+                "failed:\n%s\n%s" % (out, err))
 
     if verbosity > 2:
         if out:
@@ -710,16 +709,15 @@ server with this hostname: %s
         server_cert_dir + "/certs/%s=%s "
     ]
 
-    args = " ".join(args)
-
-    args = args % (repr(server_rpm_name), ver, rel, repr(d['--rpm-packager']),
-                   repr(d['--rpm-vendor']),
-                   repr(SERVER_RPM_SUMMARY), repr(description),
-                   repr(cleanupAbsPath(postun_scriptlet)),
-                   repr(server_key_name), repr(cleanupAbsPath(server_key)),
-                   repr(server_cert_req_name), repr(cleanupAbsPath(server_cert_req)),
-                   repr(server_cert_name), repr(cleanupAbsPath(server_cert))
-                   )
+    args = " ".join(args) % (
+        repr(server_rpm_name), ver, rel, repr(d['--rpm-packager']),
+        repr(d['--rpm-vendor']),
+        repr(SERVER_RPM_SUMMARY), repr(description),
+        repr(cleanupAbsPath(postun_scriptlet)),
+        repr(server_key_name), repr(cleanupAbsPath(server_key)),
+        repr(server_cert_req_name), repr(cleanupAbsPath(server_cert_req)),
+        repr(server_cert_name), repr(cleanupAbsPath(server_cert))
+    )
     serverRpmName = "%s-%s-%s" % (server_rpm, ver, rel)
 
     if verbosity >= 0:
@@ -915,7 +913,7 @@ can't find a file that should have been created during an earlier step:
     except KeyboardInterrupt:
         sys.stderr.write("\nUser interrupted process.\n")
         ret = 0
-    except:
+    except:  # noqa
         sys.stderr.write("\nERROR: unhandled exception occurred:\n")
         raise
 
