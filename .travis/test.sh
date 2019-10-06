@@ -14,7 +14,7 @@ docbook2man katello-ssl-tool.sgml
 
 python setup.py install
 
-for filename in tests/* ; do
+for filename in tests/integration/* ; do
 	if [[ -x $filename ]] ; then
 		$filename
 	else
