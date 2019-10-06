@@ -439,31 +439,29 @@ subjectAltName          = @alt_names
 """
 
 
-def gen_req_alt_names(d, hostname):
+def gen_req_alt_names(hostname, cnames=None):
     """ generates the alt_names section of the *-openssl.cnf file """
-    i = 0
-    result = ''
     dnsname = [hostname]
-    if '--set-cname' in d and d['--set-cname']:
-        dnsname.extend(d['--set-cname'])
-    for name in dnsname:
-        i += 1
+    if cnames:
+        dnsname.extend(cnames)
+
+    result = ''
+    for i, name in enumerate(dnsname, 1):
         result += "DNS.%d = %s\n" % (i, name)
     return result
 
 
 def gen_req_distinguished_name(d):
     """ generates the req_distinguished section of the *-openssl.cnf file """
-
-    s = ""
+    result = ""
     keys = ('C', 'ST', 'L', 'O', 'OU', 'CN', 'emailAddress')
     for key in keys:
         if key in d and d[key].strip():
-            s = s + key + (24-len(key))*' ' + '= %s\n' % d[key].strip()
+            result += '{0: <24}= {1}\n'.format(key, d[key].strip())
         else:
-            s = s + '#' + key + (24-len(key))*' ' + '= ""\n'
+            result += '#{0: <24}= ""\n'.format(key)
 
-    return s
+    return result
 
 
 def figureSerial(caCertFilename, serialFilename, indexFilename):
@@ -565,7 +563,7 @@ def save_config(filename, d, is_ca, verbosity=0):
     if is_ca:
         openssl_cnf = CONF_TEMPLATE_CA % (os.path.dirname(filename)+'/', request)
     else:
-        alt_names = gen_req_alt_names(d, rdn['CN'])
+        alt_names = gen_req_alt_names(rdn['CN'], d.get('--set-cname'))
         openssl_cnf = CONF_TEMPLATE_SERVER % (request, d['--purpose'], alt_names)
 
     try:
